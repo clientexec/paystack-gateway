@@ -140,7 +140,6 @@ class PluginPaystack extends GatewayPlugin
     {
         $this->view->amount = sprintf("%01.2f", round($args['invoiceBalanceDue'], 2)) * 100;
         $this->view->from = $args['from'];
-        $this->view->callBackURL = CE_Lib::getSoftwareURL().'/plugins/gateways/paystack/callback.php?invoiceid=' . $args['invoiceId'];
 
         if ($this->getVariable('Test Mode') == '1') {
             $this->view->publicKey = $this->getVariable('Test Public Key');
