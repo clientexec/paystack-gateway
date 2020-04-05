@@ -1,13 +1,11 @@
-<input type="hidden" id="paystack_transaction_id" name="plugincustomfields[paystack_transaction_id]" value="">
+<input type="hidden" id="paystack_transaction_id" name="paystack_plugincustomfields[paystack_transaction_id]" value="">
 
-<form>
-    <script src="https://js.paystack.co/v1/inline.js"></script>
-    <?php if ($this->from == 'signup') { ?>
-    <a style="margin-left:0px;cursor:pointer;" class="pull-right btn btn-large customButton paystackButton <?php if(@$this->termsConditions) { ?>disabled<?php } ?>" id="customButton"></a>
-    <?php } else if ($this->from == 'invoice') { ?>
-    <button style="margin-left:0px;cursor:pointer;" class="pull-right btn btn-large customButton paystackButton" id="customButton"><?php echo $this->user->lang('Pay Invoice'); ?></button>
-    <?php } ?>
-</form>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<?php if ($this->from == 'signup') { ?>
+<a style="margin-left:0px;cursor:pointer;" class="center-on-mobile btn-success btn btn-lg customButton paystackButton <?php if(@$this->termsConditions) { ?>disabled<?php } ?>" id="customButton"></a>
+<?php } else if ($this->from == 'invoice') { ?>
+<button style="margin-left:0px;cursor:pointer;" class="pull-right btn btn-lg btn-default customButton paystackButton"><?php echo $this->user->lang('Pay Invoice'); ?></button>
+<?php } ?>
 
 <script>
     function paystackOpenHandler(){
@@ -19,7 +17,7 @@
                 amount: '<?php echo $this->amount; ?>',
             <?php } else if ($this->from == 'signup')  { ?>
                 email: document.getElementById("CT_4").value+'<?php echo @$this->user->getEmail(); ?>',
-                amount: (document.getElementById("totalPay_raw").value * 100),
+                amount: Math.round(document.getElementById("totalPay_raw").value * 100),
             <?php } ?>
 
             callback: function(response) {

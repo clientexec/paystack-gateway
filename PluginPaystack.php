@@ -23,7 +23,6 @@ class PluginPaystack extends GatewayPlugin
                 'description' => lang('Enter your Live Secret Key here'),
                 'value'       => ''
             ),
-
             lang('Live Public Key') => array(
                 'type'        => 'text',
                 'description' => lang('Enter your Live Public Key here'),
@@ -59,11 +58,6 @@ class PluginPaystack extends GatewayPlugin
                 'description' => lang('No description'),
                 'value'       => '0'
             ),
-            lang('CC Stored Outside') => array(
-                'type'        => 'hidden',
-                'description' => lang('Is Credit Card stored outside of Clientexec? 1 = YES, 0 = NO'),
-                'value'       => '1'
-            ),
             lang('Form') => array(
                 'type'        => 'hidden',
                 'description' => lang('Has a form to be loaded?  1 = YES, 0 = NO'),
@@ -92,7 +86,7 @@ class PluginPaystack extends GatewayPlugin
         try {
             $paystack = new Yabacon\Paystack($privateKey);
             $response = $paystack->transaction->verify(['reference' => $transactionId]);
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             CE_Lib::log(1, $e->getMessage());
             return $this->user->lang("There was an error with PayStack.")." ".$e->getMessage();
         }
@@ -128,9 +122,9 @@ class PluginPaystack extends GatewayPlugin
             }
         } else {
             if ($success === true) {
-                $returnURL = CE_Lib::getSoftwareURL()."/index.php?fuse=billing&paid=1&controller=invoice&view=invoice&id=".$invoice_id;
+                $returnURL = CE_Lib::getSoftwareURL()."/index.php?fuse=billing&paid=1&controller=invoice&view=invoice&id=".$invoiceId;
             } else {
-                $returnURL = CE_Lib::getSoftwareURL()."/index.php?fuse=billing&cancel=1&controller=invoice&view=invoice&id=".$invoice_id;
+                $returnURL = CE_Lib::getSoftwareURL()."/index.php?fuse=billing&cancel=1&controller=invoice&view=invoice&id=".$invoiceId;
             }
         }
         header("Location: " . $returnURL);
@@ -140,6 +134,7 @@ class PluginPaystack extends GatewayPlugin
     {
         $this->view->amount = sprintf("%01.2f", round($args['invoiceBalanceDue'], 2)) * 100;
         $this->view->from = $args['from'];
+        $this->view->termsConditions = $args['termsConditions'];
 
         if ($this->getVariable('Test Mode') == '1') {
             $this->view->publicKey = $this->getVariable('Test Public Key');
