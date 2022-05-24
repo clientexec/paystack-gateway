@@ -9,6 +9,18 @@
 
 <script>
     function paystackOpenHandler(){
+        <?php if ($this->from == 'signup') { ?>
+            var email = '';
+
+            <?php if (!$this->loggedIn) { ?>
+                var CT_4 = document.getElementById('CT_4');
+
+                if(typeof CT_4 !== null && CT_4 !== 'undefined' ) {
+                    email = CT_4.value;
+                }
+            <?php } ?>
+        <?php } ?>
+
         var handler = PaystackPop.setup({
             key: '<?php echo $this->publicKey; ?>',
 
@@ -17,7 +29,7 @@
                 amount: '<?php echo $this->amount; ?>',
                 currency: '<?php echo $this->currency;?>',
             <?php } else if ($this->from == 'signup')  { ?>
-                email: document.getElementById("CT_4").value+'<?php echo @$this->user->getEmail(); ?>',
+                email: email+'<?php echo @$this->user->getEmail(); ?>',
                 amount: Math.round(document.getElementById("totalPay_raw").value * 100),
                 currency: '<?php echo $this->Currency;?>',
             <?php } ?>
