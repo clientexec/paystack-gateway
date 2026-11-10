@@ -85,6 +85,7 @@ class PluginPaystack extends GatewayPlugin
         }
 
         try {
+            //This code will fail if having issues with their cloudflare if not using ssl
             $paystack = new Yabacon\Paystack($privateKey);
             $response = $paystack->transaction->verify(['reference' => $transactionId]);
         } catch (Exception $e) {
@@ -102,7 +103,7 @@ class PluginPaystack extends GatewayPlugin
             $cPlugin->PaymentAccepted($pricePaid, $transaction);
         } else {
             $success = false;
-            $transaction = "Payment rejected - Reason: ".$error;
+            $transaction = 'Payment rejected - Paystack transaction status: '.($response->data->status ?? 'unknown');
             $cPlugin->PaymentRejected($transaction, false);
         }
 
@@ -136,6 +137,7 @@ class PluginPaystack extends GatewayPlugin
         $this->view->amount = sprintf("%01.2f", round($args['invoiceBalanceDue'], 2)) * 100;
         $this->view->currency = $args['currency'];
         $this->view->from = $args['from'];
+        $this->view->invoiceId = @$args['invoiceId'];
         $this->view->termsConditions = $args['termsConditions'];
 
         if ($this->getVariable('Test Mode') == '1') {

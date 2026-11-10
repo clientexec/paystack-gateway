@@ -1,48 +1,58 @@
 <input type="hidden" id="paystack_transaction_id" name="paystack_plugincustomfields[paystack_transaction_id]" value="">
+<input type="hidden" id="paystack_skip_captcha" name="paystack_plugincustomfields[paystack_skip_captcha]" value="0">
 
-<script src="https://js.paystack.co/v1/inline.js"></script>
+<script src="https://js.paystack.co/v2/inline.js"></script>
+
 <?php if ($this->from == 'signup') { ?>
 <a style="margin-left:0px;cursor:pointer;" class="center-on-mobile app-btns primary customButton paystackButton" id="customButton"></a>
-<?php } else if ($this->from == 'invoice') { ?>
+<?php } elseif ($this->from == 'invoice') { ?>
 <button class="app-btns primary customButton paystackButton"><?php echo $this->user->lang('Pay Invoice'); ?></button>
 <?php } ?>
 
 <script>
-    function paystackOpenHandler(){
+    function paystackOpenHandler() {
         <?php if ($this->from == 'signup') { ?>
-            var email = '';
+            let email = '';
 
             <?php if (!$this->loggedIn) { ?>
-                var CT_4 = document.getElementById('CT_4');
+                const CT_4 = document.getElementById('CT_4');
 
-                if(typeof CT_4 !== null && CT_4 !== 'undefined' ) {
+                if (CT_4 !== null) {
                     email = CT_4.value;
                 }
+            <?php } else { ?>
+                email = '<?php echo $this->user->getEmail(); ?>';
             <?php } ?>
+
+            const amount = Math.round(
+                parseFloat(document.getElementById('totalPay_raw').value) * 100
+            );
+
+            const currency = '<?php echo $this->Currency; ?>';
+        <?php } else { ?>
+            const email = '<?php echo $this->user->getEmail(); ?>';
+            const amount = <?php echo (int) $this->amount; ?>;
+            const currency = '<?php echo $this->currency; ?>';
         <?php } ?>
 
-        var handler = PaystackPop.setup({
+        const paystack = new PaystackPop();
+
+        paystack.newTransaction({
             key: '<?php echo $this->publicKey; ?>',
+            email: email,
+            amount: amount,
+            currency: currency,
 
-            <?php if ($this->from == 'invoice') { ?>
-                email: '<?php echo $this->user->getEmail(); ?>',
-                amount: '<?php echo $this->amount; ?>',
-                currency: '<?php echo $this->currency;?>',
-            <?php } else if ($this->from == 'signup')  { ?>
-                email: email+'<?php echo @$this->user->getEmail(); ?>',
-                amount: Math.round(document.getElementById("totalPay_raw").value * 100),
-                currency: '<?php echo $this->Currency;?>',
-            <?php } ?>
+            onSuccess: function(transaction) {
+                document.getElementById('paystack_transaction_id').value = transaction.reference;
+                document.getElementById('paystack_skip_captcha').value = "1";
+                $('#submitButton').click();
+            },
 
-            callback: function(response) {
-                document.getElementById('paystack_transaction_id').value = response.trxref;
-
-                <?php if ($this->from == 'invoice' || $this->from == 'signup') { ?>
-                    $('#submitButton').click();
-                <?php } ?>
+            onCancel: function() {
+                // User closed the Paystack popup
             }
         });
-        handler.openIframe();
     }
 
     $('.paystackButton').on('click', function(e) {
@@ -52,7 +62,132 @@
             if ($('.paystackButton').hasClass('disabled')) {
                 return;
             }
+
+            var password_validated = true;
+
+            <?php if (!$this->loggedIn) { ?>
+                $('.password-strength-error').remove();
+                $('#password').parent().removeClass('has-error');
+
+                //let's validate remote data
+                if ($('#password').length > 0) {
+                    $.ajax({
+                        type: "POST",
+                        data: {"password": $('#password').val()},
+                        url: 'index.php?controller=signup&fuse=admin&action=testpasswordstrength',
+                        async: false,
+                        success : function(response) {
+                            const json = clientexec.parseResponse(response);
+                            if (!json.valid) {
+                                password_validated = false;
+                                $('#password').parent().addClass('has-error');
+                                $('#password').after('<span class="help-block password-strength-error">'+json.errorMessage+'</span>');
+                                $('#password').get(0).scrollIntoView();
+                            }
+                        }
+                    });
+                }
+            <?php } ?>
+
+            var parsleyForm = $('#submitForm').parsley({
+                excluded: 'input[type=button], input[type=submit], input[type=reset], :hidden'
+            });
+            var form_validated = parsleyForm.validate();
+
+            if (password_validated && form_validated) {
         <?php } ?>
-        paystackOpenHandler();
+
+        <?php if ($this->from == 'invoice') { ?>
+            $.ajax({
+                type: 'POST',
+                url: 'index.php?fuse=billing&action=fraudcheck',
+                dataType: 'json',
+                data: {
+                    params: {
+                        actionType: 'singlepayment',
+                        plugin: 'paystack',
+                        invoiceId: '<?php echo (int)$this->invoiceId; ?>'
+                    }
+                },
+                success: function(response) {
+                    if (response.fraudCheckPassed) {
+                        // Open Handler
+                        paystackOpenHandler();
+                    } else {
+                        window.location.href = '<?php echo CE_Lib::getSoftwareURL() . "/index.php?fuse=billing&cancel=1&controller=invoice&view=invoice&id=" . $this->invoiceId; ?>'
+                    }
+                },
+                error: function() {
+                    alert('<?php echo $this->user->lang("There was an error validating the payment."); ?>');
+                }
+            });
+        <?php } elseif ($this->from == 'signup') { ?>
+            paystack_ccNumber = document.getElementById(`paystack_ccNumber`);
+            const myElements = {};
+
+            myElements[`totalPay_raw`] = Math.round(
+                parseFloat(document.getElementById('totalPay_raw').value) * 100
+            );
+
+            <?php if (!$this->loggedIn) { ?>
+                const fieldIds = [
+                    '<?php echo $this->user->getCustomFieldsObj()->_getCustomFieldIdByType(typeEMAIL); ?>',
+                    '<?php echo $this->user->getCustomFieldsObj()->_getCustomFieldIdByType(typeFIRSTNAME); ?>',
+                    '<?php echo $this->user->getCustomFieldsObj()->_getCustomFieldIdByType(typeLASTNAME); ?>',
+                    '<?php echo $this->user->getCustomFieldsObj()->_getCustomFieldIdByType(typeADDRESS); ?>',
+                    '<?php echo $this->user->getCustomFieldsObj()->_getCustomFieldIdByType(typeCITY); ?>',
+                    '<?php echo $this->user->getCustomFieldsObj()->_getCustomFieldIdByType(typeSTATE); ?>',
+                    '<?php echo $this->user->getCustomFieldsObj()->_getCustomFieldIdByType(typeCOUNTRY); ?>',
+                    '<?php echo $this->user->getCustomFieldsObj()->_getCustomFieldIdByType(typeZIPCODE); ?>',
+                    '<?php echo $this->user->getCustomFieldsObj()->_getCustomFieldIdByType(typePHONENUMBER); ?>',
+                    '<?php echo $this->user->getCustomFieldsObj()->_getCustomFieldIdByType(typeORGANIZATION); ?>'
+                ];
+
+                fieldIds.forEach(id => {
+                    const element = document.getElementById(`CT_${id}`);
+                    // If the element exists, get its value; otherwise, default to an empty string
+                    myElements[`CT_${id}`] = element?.value ?? '';
+                });
+
+                myElements[`paymentMethod`] = 'paystack';
+                myElements[`paystack_ccNumber`] = paystack_ccNumber?.value ?? '';
+                myElements[`selectedcurrency`] = '<?php echo $this->Currency; ?>';
+                myElements[`currency`] = '<?php echo $this->Currency; ?>';
+            <?php } else { ?>
+                myElements[`actionType`] = 'singlepayment';
+                myElements[`plugin`] = 'paystack';
+                myElements[`cc_num`] = paystack_ccNumber?.value ?? '';
+                myElements[`clientId`] = '<?php echo $this->user->getId(); ?>';
+            <?php } ?>
+
+            $.ajax({
+                type: 'POST',
+                url: 'index.php?fuse=billing&action=fraudcheck',
+                dataType: 'json',
+                data: {
+                    params: myElements
+                },
+                success: function(response) {
+                    if (response.fraudCheckPassed) {
+                        // Open Handler
+                        paystackOpenHandler();
+                    } else {
+                        //Complete the order but avoid charging
+                        document.getElementById('paystack_skip_captcha').value = "0";
+                        $('#submitButton').click();
+                    }
+                },
+                error: function() {
+                    alert('<?php echo $this->user->lang("There was an error validating the payment."); ?>');
+                }
+            });
+        <?php } else { ?>
+        // Open Handler
+            paystackOpenHandler();
+        <?php } ?>
+
+        <?php if ($this->from == 'signup') { ?>
+            }
+        <?php } ?>
     });
 </script>
